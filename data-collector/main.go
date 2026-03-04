@@ -77,7 +77,7 @@ func snapshotFromCamera(cameraId string) {
 		return
 	}
 
-	log.Printf("Camera %s: Success -> %s\n", cameraId, videoFileName)
+	log.Printf("Camera %s: Successfully downloaded video -> %s\n", cameraId, videoFileName)
 
 	log.Printf("extracting frame %s\n", videoFileName)
 	frameFileName := fmt.Sprintf("%s.jpg", strings.TrimSuffix(videoFileName, ".mp4"))
