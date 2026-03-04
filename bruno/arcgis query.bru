@@ -1,0 +1,32 @@
+meta {
+  name: arcgis query
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&objectIds=570410&outFields=*&returnGeometry=false
+  body: none
+  auth: inherit
+}
+
+params:query {
+  f: json
+  cacheHint: true
+  objectIds: 570410
+  outFields: *
+  returnGeometry: false
+  ~resultOffset: 0
+  ~resultRecordCount: 50
+  ~where: 1=1
+  ~orderByFields: 
+  ~spatialRel: esriSpatialRelIntersects
+}
+
+headers {
+  Content-Type: application/json
+}
+
+settings {
+  encodeUrl: true
+}

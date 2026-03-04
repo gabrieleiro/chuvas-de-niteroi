@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Chuvas de niterói",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
