@@ -28,24 +28,46 @@ var ffmpegPath string
 var videoDownloadChannel = make(chan string, 100)
 var videoFilesChannel = make(chan string, 100)
 
-func initFfmpeg() error {
+type IssueList struct {
+	issues []error
+}
+
+func (il IssueList) Add(e error) {
+	if e != nil {
+		il.issues = append(il.issues, e)
+	}
+}
+
+func (il IssueList) IsEmpty() bool {
+	return len(il.issues) == 0
+}
+
+func (il IssueList) String() string {
+	var sb strings.Builder
+
+	for _, i := range il.issues {
+		sb.WriteString(i.Error())
+		sb.WriteString("\n\n")
+	}
+
+	return sb.String()
+}
+
+func initFfmpeg() IssueList {
+	var issues IssueList
+
 	platform := runtime.GOOS + "_" + runtime.GOARCH
 	log.Printf("Initializing ffmpeg for platform: %s\n", platform)
 
 	tmpDir, err := os.MkdirTemp("", "ffmpeg-")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
+	issues.Add(err)
 
 	ffmpegPath = filepath.Join(tmpDir, "ffmpeg")
 
 	err = os.WriteFile(ffmpegPath, ffmpegBinary, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to write ffmpeg binary: %w", err)
-	}
+	issues.Add(err)
 
-	log.Printf("FFmpeg extracted to: %s\n", ffmpegPath)
-	return nil
+	return issues
 }
 
 func snapshotFromCamera(cameraId string) {
@@ -107,9 +129,9 @@ func snapshotFromCamera(cameraId string) {
 func main() {
 	log.Println("Starting NitTrans camera downloads...")
 
-	err := initFfmpeg()
-	if err != nil {
-		log.Fatalf("Failed to initialize ffmpeg: %v\n", err)
+	issues := initFfmpeg()
+	if !issues.IsEmpty() {
+		log.Fatalf("Failed to initialize ffmpeg: \n%v\n", issues)
 	}
 
 	go func() {
