@@ -93,12 +93,12 @@ func snapshotFromCamera(cameraId string) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	url := fmt.Sprintf("%s/%s/last_video.mp4", nittransBaseUrl, cameraId)
 	videoFileName := fmt.Sprintf("%s_cam%s.mp4", now, cameraId)
+
 	resp, err := http.Get(url)
 	if err != nil {
 		logError("Camera %s: Request failed: %w", cameraId, err)
 		return
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -118,8 +118,6 @@ func snapshotFromCamera(cameraId string) {
 		return
 	}
 
-	logInfo("Camera %s: Successfully downloaded video -> %s", cameraId, videoFileName)
-
 	logInfo("extracting frame %s", videoFileName)
 	frameFileName := fmt.Sprintf("%s.jpg", strings.TrimSuffix(videoFileName, ".mp4"))
 
@@ -136,13 +134,12 @@ func snapshotFromCamera(cameraId string) {
 
 	err = cmd.Run()
 	if err != nil {
-		logInfo("Camera %s: Error extracting frame: %v\n%s", videoFileName, err, stderrBuf.String())
-		return
+		logError("Camera %s: Error extracting frame: %v\n%s", videoFileName, err, stderrBuf.String())
+	} else {
+		logInfo("Camera %s: Success -> %s", videoFileName, frameFileName)
 	}
 
 	os.Remove(videoFileName)
-
-	logInfo("Camera %s: Success -> %s", videoFileName, frameFileName)
 }
 
 func main() {
