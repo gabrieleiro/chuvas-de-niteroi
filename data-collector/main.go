@@ -53,21 +53,40 @@ func (il IssueList) String() string {
 	return sb.String()
 }
 
-func initFfmpeg() IssueList {
-	var issues IssueList
+var (
+	infoLogger   = log.New(os.Stdout, "INFO: ",  log.Ldate | log.Ltime)
+	errorLogger  = log.New(os.Stderr, "ERROR: ", log.Ldate | log.Ltime)
+)
+
+func logInfo(msg string, v ...any) {
+	infoLogger.Println(fmt.Sprintf(msg, v))
+}
+
+func logError(msg string, v ...any) {
+	errorLogger.Println(fmt.Sprintf(msg, v))
+}
+
+func initFfmpeg() (success bool) {
+	success = true
 
 	platform := runtime.GOOS + "_" + runtime.GOARCH
-	log.Printf("Initializing ffmpeg for platform: %s\n", platform)
+	logInfo("Initializing ffmpeg for platform: %s\n", platform)
 
 	tmpDir, err := os.MkdirTemp("", "ffmpeg-")
-	issues.Add(err)
+	if err != nil {
+		success = false
+		logError("creating temporary directory: %w", err)
+	}
 
 	ffmpegPath = filepath.Join(tmpDir, "ffmpeg")
 
 	err = os.WriteFile(ffmpegPath, ffmpegBinary, 0755)
-	issues.Add(err)
+	if err != nil {
+		success = false
+		logError("extracting ffmpeg binary: %w", err)
+	}
 
-	return issues
+	return success
 }
 
 func snapshotFromCamera(cameraId string) {
@@ -76,32 +95,32 @@ func snapshotFromCamera(cameraId string) {
 	videoFileName := fmt.Sprintf("%s_cam%s.mp4", now, cameraId)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Camera %s: Request failed: %v\n", cameraId, err)
+		logError("Camera %s: Request failed: %w", cameraId, err)
 		return
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Camera %s: Failed with status %s\n", cameraId, resp.Status)
+		logError("Camera %s: Failed with status %s", cameraId, resp.Status)
 		return
 	}
 
 	out, err := os.Create(videoFileName)
 	if err != nil {
-		log.Printf("Camera %s: Failed to create video file: %v\n", cameraId, err)
+		logError("Camera %s: Failed to create video file: %v", cameraId, err)
 		return
 	}
 	_, err = io.Copy(out, resp.Body)
 	out.Close()
 	if err != nil {
-		log.Printf("Camera %s: Failed to download video: %v\n", cameraId, err)
+		logError("Camera %s: Failed to download video: %v", cameraId, err)
 		return
 	}
 
-	log.Printf("Camera %s: Successfully downloaded video -> %s\n", cameraId, videoFileName)
+	logInfo("Camera %s: Successfully downloaded video -> %s", cameraId, videoFileName)
 
-	log.Printf("extracting frame %s\n", videoFileName)
+	logInfo("extracting frame %s", videoFileName)
 	frameFileName := fmt.Sprintf("%s.jpg", strings.TrimSuffix(videoFileName, ".mp4"))
 
 	cmd := exec.Command(ffmpegPath,
@@ -117,28 +136,27 @@ func snapshotFromCamera(cameraId string) {
 
 	err = cmd.Run()
 	if err != nil {
-		log.Printf("Camera %s: Error extracting frame: %v\n%s\n", videoFileName, err, stderrBuf.String())
+		logInfo("Camera %s: Error extracting frame: %v\n%s", videoFileName, err, stderrBuf.String())
 		return
 	}
 
 	os.Remove(videoFileName)
 
-	log.Printf("Camera %s: Success -> %s\n", videoFileName, frameFileName)
+	logInfo("Camera %s: Success -> %s", videoFileName, frameFileName)
 }
 
 func main() {
 	log.Println("Starting NitTrans camera downloads...")
 
-	issues := initFfmpeg()
-	if !issues.IsEmpty() {
-		log.Fatalf("Failed to initialize ffmpeg: \n%v\n", issues)
+	if !initFfmpeg() {
+		log.Fatalf("Failed to initialize ffmpeg")
 	}
 
 	go func() {
 		ticker := time.NewTicker(time.Minute)
 
 		for range ticker.C {
-			log.Printf("new batch\n")
+			logInfo("new batch")
 			for _, id := range cameraIds {
 				snapshotFromCamera(id)
 				time.Sleep(time.Second)
@@ -150,5 +168,5 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
-	log.Printf("shutting down...")
+	logInfo("shutting down...")
 }
