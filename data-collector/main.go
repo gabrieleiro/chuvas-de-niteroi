@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,35 @@ import (
 	"time"
 )
 
+type arcGisTime time.Time
+
+func (agt arcGisTime) String() string {
+	return time.Time(agt).Format("02/01/2006 15:04")	
+}
+
+func (agt *arcGisTime) UnmarshalJSON(b []byte) error {
+	s := string(b)
+    s = s[1 : len(s)-1]
+
+    t, err := time.Parse("02/01/2006 15:04", s)
+    if err != nil {
+        return err
+    }
+
+    *agt = arcGisTime(t)
+    return nil
+}
+
+type arcGisResponse struct {
+	Features [] struct {
+		Attributes struct {
+			Station string    `json:"tx_estacao"`
+			Date arcGisTime   `json:"dt_data"`
+			Reading float64   `json:"fl_ppnow"`
+		} `json:"attributes"`
+	} `json:"features"`
+}
+
 const nittransBaseUrl = "https://appnittrans.niteroi.rj.gov.br:8888"
 
 var cameraIds = []string{
@@ -28,42 +58,17 @@ var ffmpegPath string
 var videoDownloadChannel = make(chan string, 100)
 var videoFilesChannel = make(chan string, 100)
 
-type IssueList struct {
-	issues []error
-}
-
-func (il IssueList) Add(e error) {
-	if e != nil {
-		il.issues = append(il.issues, e)
-	}
-}
-
-func (il IssueList) IsEmpty() bool {
-	return len(il.issues) == 0
-}
-
-func (il IssueList) String() string {
-	var sb strings.Builder
-
-	for _, i := range il.issues {
-		sb.WriteString(i.Error())
-		sb.WriteString("\n\n")
-	}
-
-	return sb.String()
-}
-
 var (
 	infoLogger   = log.New(os.Stdout, "INFO: ",  log.Ldate | log.Ltime)
 	errorLogger  = log.New(os.Stderr, "ERROR: ", log.Ldate | log.Ltime)
 )
 
 func logInfo(msg string, v ...any) {
-	infoLogger.Println(fmt.Sprintf(msg, v))
+	infoLogger.Println(fmt.Sprintf(msg, v...))
 }
 
 func logError(msg string, v ...any) {
-	errorLogger.Println(fmt.Sprintf(msg, v))
+	errorLogger.Println(fmt.Sprintf(msg, v...))
 }
 
 func initFfmpeg() (success bool) {
@@ -87,6 +92,32 @@ func initFfmpeg() (success bool) {
 	}
 
 	return success
+}
+
+func rainGaugeReading() {
+	logInfo("fetching readings from rain gauges")
+
+	url := fmt.Sprintf("https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&outFields=tx_estacao,dt_data,fl_ppnow&returnGeometry=false&where=1=1")
+	resp, err := http.Get(url)
+	if err != nil {
+		logError("Rain gauge reading request failed: %v", err)
+		return
+	}
+	
+	if resp.StatusCode != http.StatusOK {
+		logError("Rain gauge reading request failed with status %s", resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	
+	var readings arcGisResponse
+	err = json.NewDecoder(resp.Body).Decode(&readings)
+	if err != nil {
+		logError("parsing arcGis response body: %v", err)
+		return
+	}
+
+	logInfo("%+v", readings)
 }
 
 func snapshotFromCamera(cameraId string) {
@@ -158,6 +189,15 @@ func main() {
 				snapshotFromCamera(id)
 				time.Sleep(time.Second)
 			}
+
+		}
+	}()
+
+	go func () {
+		ticker := time.NewTicker(time.Minute)
+
+		for range ticker.C {
+			rainGaugeReading()
 		}
 	}()
 
