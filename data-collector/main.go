@@ -143,7 +143,7 @@ func snapshotFromCamera(cameraId string) {
 }
 
 func main() {
-	log.Println("Starting NitTrans camera downloads...")
+	logInfo("Starting NitTrans camera downloads")
 
 	if !initFfmpeg() {
 		log.Fatalf("Failed to initialize ffmpeg")
