@@ -1,2 +1,4 @@
 .DS_Store
 data-collector/build
+*.env
+*.db
