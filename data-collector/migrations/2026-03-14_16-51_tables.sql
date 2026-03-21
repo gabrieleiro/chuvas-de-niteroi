@@ -1,3 +1,5 @@
+BEGIN TRANSACTION;
+
 CREATE TABLE IF NOT EXISTS RainGaugeDevice(
     id                INTEGER PRIMARY KEY,
     id_in_arcgis      TEXT NOT NULL,
@@ -33,3 +35,5 @@ CREATE TABLE IF NOT EXISTS CameraSnapshot(
     created_at   DATETIME DEFAULT CURRENT_TIMESTAMPT NOT NULL,
     deleted_at   DATETIME
 );
+
+COMMIT;
