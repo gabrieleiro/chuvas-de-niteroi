@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -169,8 +170,41 @@ func snapshotFromCamera(cameraId string) {
 	)
 
 	out, err := os.Create(pathToVideoFile)
-	if err != nil {
-		logError("Camera %s: Failed to create video file %v: %v", cameraId, pathToVideoFile, err)
+	var pathError *os.PathError
+
+	for err != nil && errors.As(err, &pathError) {
+		err = os.Mkdir(CAMERA_FEEDS_DIRECTORY, 0777)
+
+		if err != nil {
+			logError(
+				"Camera %s: Creating directory for camera feeds %v: %v",
+				cameraId,
+				CAMERA_FEEDS_DIRECTORY,
+				err,
+			)
+
+			return
+		}
+
+		logInfo(
+			"Camera %s: Created directory for camera feeds %v",
+			cameraId,
+			CAMERA_FEEDS_DIRECTORY,
+		)
+
+	
+		out, err = os.Create(pathToVideoFile)
+	}
+	
+
+	if err != nil && !errors.As(err, &pathError) {
+		logError(
+			"Camera %s: Failed to create video file %v: %v",
+			cameraId,
+			pathToVideoFile,
+			err,
+		)
+
 		return
 	}
 
@@ -201,6 +235,39 @@ func snapshotFromCamera(cameraId string) {
 	cmd.Stderr = &stderrBuf
 
 	err = cmd.Run()
+	var exitErr *exec.ExitError
+	for err != nil && errors.As(err, &exitErr) && exitErr.ExitCode() == 251 {
+		err = os.Mkdir(CAMERA_SNAPSHOTS_DIRECTORY, 0777)
+
+		if err != nil {
+			logError(
+				"Camera %s: Creating directory for camera snapshots %v: %v",
+				cameraId,
+				CAMERA_SNAPSHOTS_DIRECTORY,
+				err,
+			)
+
+			return
+		}
+
+		logInfo(
+			"Camera %s: Created directory for camera snapshots %v",
+			cameraId,
+			CAMERA_SNAPSHOTS_DIRECTORY,
+		)
+	
+		cmd = exec.Command(ffmpegPath,
+			"-i", "file:"+pathToVideoFile,
+			"-vframes", "1",
+			"-f", "image2",
+			"-update", "1",
+			"-y", pathToFrame,
+		)
+
+		cmd.Stderr = &stderrBuf
+		err = cmd.Run()
+	}
+
 	if err != nil {
 		logError(
 			"Camera %s: Error extracting frame: %v\n%s",
