@@ -24,6 +24,7 @@ import (
 
 var db *sql.DB
 var CAMERA_SNAPSHOTS_DIRECTORY string 
+var CAMERA_FEEDS_DIRECTORY string
 
 type arcGisTime time.Time
 
@@ -161,11 +162,18 @@ func snapshotFromCamera(cameraId string) {
 		return
 	}
 
-	out, err := os.Create(videoFileName)
+	pathToVideoFile := fmt.Sprintf(
+		"%v/%v",
+		CAMERA_FEEDS_DIRECTORY,
+		videoFileName,
+	)
+
+	out, err := os.Create(pathToVideoFile)
 	if err != nil {
-		logError("Camera %s: Failed to create video file: %v", cameraId, err)
+		logError("Camera %s: Failed to create video file %v: %v", cameraId, pathToVideoFile, err)
 		return
 	}
+
 	_, err = io.Copy(out, resp.Body)
 	out.Close()
 	if err != nil {
@@ -182,7 +190,7 @@ func snapshotFromCamera(cameraId string) {
 	)
 
 	cmd := exec.Command(ffmpegPath,
-		"-i", "file:"+videoFileName,
+		"-i", "file:"+pathToVideoFile,
 		"-vframes", "1",
 		"-f", "image2",
 		"-update", "1",
@@ -218,13 +226,21 @@ func main() {
 		}
 	}
 
-	DB_CONNECTION_STRING := os.Getenv("DB_CONNECTION_STRING")
-	CAMERA_SNAPSHOTS_DIRECTORY = os.Getenv("CAMERA_SNAPSHOTS_DIRECTORY")	
+	DB_CONNECTION_STRING          := os.Getenv("DB_CONNECTION_STRING")
+	CAMERA_SNAPSHOTS_DIRECTORY     = os.Getenv("CAMERA_SNAPSHOTS_DIRECTORY")	
+	CAMERA_FEEDS_DIRECTORY         = os.Getenv("CAMERA_FEEDS_DIRECTORY")	
 
 	if strings.TrimSpace(CAMERA_SNAPSHOTS_DIRECTORY) == "" {
 		log.Fatalf(
 			"Invalid value for CAMERA_SNAPSHOTS_DIRECTORY %v",
 			CAMERA_SNAPSHOTS_DIRECTORY,
+		)
+	}
+	
+	if strings.TrimSpace(CAMERA_FEEDS_DIRECTORY) == "" {
+		log.Fatalf(
+			"Invalid value for CAMERA_FEEDS_DIRECTORY %v",
+			CAMERA_FEEDS_DIRECTORY,
 		)
 	}
 
