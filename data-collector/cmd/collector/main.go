@@ -48,9 +48,10 @@ func (agt *arcGisTime) UnmarshalJSON(b []byte) error {
 type arcGisResponse struct {
 	Features []struct {
 		Attributes struct {
-			Station string     `json:"tx_estacao"`
-			Date    arcGisTime `json:"dt_data"`
-			Reading float64    `json:"fl_ppnow"`
+			Station   string     `json:"tx_estacao"`
+			Date      arcGisTime `json:"dt_data"`
+			Reading   float64    `json:"fl_ppnow"`
+			GlobalId  string    `json:"GlobalID"`
 		} `json:"attributes"`
 	} `json:"features"`
 }
@@ -84,7 +85,7 @@ func initFfmpeg() (success bool) {
 	success = true
 
 	platform := runtime.GOOS + "_" + runtime.GOARCH
-	logInfo("Initializing ffmpeg for platform: %s\n", platform)
+	logInfo("Initializing ffmpeg for platform %s\n", platform)
 
 	tmpDir, err := os.MkdirTemp("", "ffmpeg-")
 	if err != nil {
@@ -104,7 +105,8 @@ func initFfmpeg() (success bool) {
 }
 
 func initDB(connectionString string) bool {
-	db, err := sql.Open("sqlite3", connectionString)
+	var err error
+	db, err = sql.Open("sqlite3", connectionString)
 	if err != nil {
 		logError("failed to open db: %s", err)
 		return false
@@ -119,10 +121,65 @@ func initDB(connectionString string) bool {
 	return true
 }
 
+func saveRainGaugeReadingToDB(agr arcGisResponse) {
+	for _, feature := range agr.Features {
+		stationId     := feature.Attributes.GlobalId
+		stationName   := feature.Attributes.Station
+		readingValue  := feature.Attributes.Reading
+		readingTime   := time.Time(feature.Attributes.Date)
+
+		var deviceId int64
+		err := db.QueryRow(
+			"SELECT id FROM RainGaugeDevice WHERE id_in_arcgis = ?",
+			stationId,
+		).Scan(&deviceId)
+
+		if err != nil && err != sql.ErrNoRows {
+			logError("Querying device by ArcGis ID %v: %v", stationId, err)
+			continue
+		}
+
+		if err == sql.ErrNoRows {
+			result, err := db.Exec(
+				"INSERT INTO RainGaugeDevice (id_in_arcgis, name, time_of_reading) VALUES (?, ?, ?)",
+				stationId,
+				stationName,
+				readingTime,
+			)
+
+			if err != nil {
+				logError(
+					"Inserting device %v with ArcGis ID %v into the database: %v",
+					 stationName,
+					 stationId,
+					 err,
+				)
+
+				continue
+			}
+
+			deviceId, _ = result.LastInsertId()
+		} 
+
+		_, err = db.Exec(
+			"INSERT INTO RainGaugeReadings (reading_value, device_id) VALUES (?, ?)",
+			readingValue,
+			deviceId,
+		)
+
+		if err != nil {
+			logError("Inserting device reading: %v", err)
+			continue
+		}
+	}
+
+	logInfo("successfully saved rain readings to database")
+}
+
 func rainGaugeReading() {
 	logInfo("fetching readings from rain gauges")
 
-	url := fmt.Sprintf("https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&outFields=tx_estacao,dt_data,fl_ppnow&returnGeometry=false&where=1=1")
+	url := "https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&outFields=tx_estacao,dt_data,fl_ppnow,GlobalID&returnGeometry=false&where=1=1"
 	resp, err := http.Get(url)
 	if err != nil {
 		logError("Rain gauge reading request failed: %v", err)
@@ -141,6 +198,8 @@ func rainGaugeReading() {
 		logError("parsing arcGis response body: %v", err)
 		return
 	}
+	
+	go saveRainGaugeReadingToDB(readings)
 
 	logInfo("%+v", readings)
 }
