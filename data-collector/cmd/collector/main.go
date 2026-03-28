@@ -329,7 +329,7 @@ func snapshotFromCamera(cameraId string) {
 			err,
 			exitErr.Stderr,
 		)
-	} else {
+	} else if err != nil {
 		logError(
 			"Camera %s: Extracting frame: %v",
 			videoFileName,
