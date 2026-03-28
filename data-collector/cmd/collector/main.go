@@ -23,6 +23,7 @@ import (
 )
 
 var db *sql.DB
+var DIRECTORY_FOR_CAMERA_SNAPSHOTS string 
 
 type arcGisTime time.Time
 
@@ -174,13 +175,18 @@ func snapshotFromCamera(cameraId string) {
 
 	logInfo("extracting frame %s", videoFileName)
 	frameFileName := fmt.Sprintf("%s.jpg", strings.TrimSuffix(videoFileName, ".mp4"))
+	pathToFrame := fmt.Sprintf(
+		"file:%v/%v",
+		DIRECTORY_FOR_CAMERA_SNAPSHOTS,
+		frameFileName,
+	)
 
 	cmd := exec.Command(ffmpegPath,
 		"-i", "file:"+videoFileName,
 		"-vframes", "1",
 		"-f", "image2",
 		"-update", "1",
-		"-y", "file:"+frameFileName,
+		"-y", pathToFrame,
 	)
 
 	var stderrBuf bytes.Buffer
@@ -188,7 +194,12 @@ func snapshotFromCamera(cameraId string) {
 
 	err = cmd.Run()
 	if err != nil {
-		logError("Camera %s: Error extracting frame: %v\n%s", videoFileName, err, stderrBuf.String())
+		logError(
+			"Camera %s: Error extracting frame: %v\n%s",
+			videoFileName,
+			err,
+			stderrBuf.String(),
+		)
 	} else {
 		logInfo("Camera %s: Success -> %s", videoFileName, frameFileName)
 	}
@@ -208,6 +219,14 @@ func main() {
 	}
 
 	DB_CONNECTION_STRING := os.Getenv("DB_CONNECTION_STRING")
+	DIRECTORY_FOR_CAMERA_SNAPSHOTS = os.Getenv("DIRECTORY_FOR_CAMERA_SNAPSHOTS")	
+
+	if strings.TrimSpace(DIRECTORY_FOR_CAMERA_SNAPSHOTS) == "" {
+		log.Fatalf(
+			"Invalid value for DIRECTORY_FOR_CAMERA_SNAPSHOTS %v",
+			DIRECTORY_FOR_CAMERA_SNAPSHOTS,
+		)
+	}
 
 	if !initFfmpeg() {
 		log.Fatalf("Failed to initialize ffmpeg")
