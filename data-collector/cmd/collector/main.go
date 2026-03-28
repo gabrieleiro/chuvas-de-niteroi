@@ -231,12 +231,9 @@ func snapshotFromCamera(cameraId string) {
 		"-y", pathToFrame,
 	)
 
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = &stderrBuf
-
 	err = cmd.Run()
 	var exitErr *exec.ExitError
-	for err != nil && errors.As(err, &exitErr) && exitErr.ExitCode() == 251 {
+	for errors.As(err, &exitErr) && exitErr.ExitCode() == 251 {
 		err = os.Mkdir(CAMERA_SNAPSHOTS_DIRECTORY, 0777)
 
 		if err != nil {
@@ -264,18 +261,25 @@ func snapshotFromCamera(cameraId string) {
 			"-y", pathToFrame,
 		)
 
-		cmd.Stderr = &stderrBuf
 		err = cmd.Run()
 	}
 
-	if err != nil {
+	if errors.As(err, exitErr) {
 		logError(
 			"Camera %s: Error extracting frame: %v\n%s",
 			videoFileName,
 			err,
-			stderrBuf.String(),
+			exitErr.Stderr,
 		)
 	} else {
+		logError(
+			"Camera %s: Extracting frame: %v",
+			videoFileName,
+			err,
+		)
+	}
+
+	if err == nil {
 		logInfo("Camera %s: Success -> %s", videoFileName, frameFileName)
 	}
 
