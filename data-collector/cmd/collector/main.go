@@ -23,7 +23,7 @@ import (
 )
 
 var db *sql.DB
-var DIRECTORY_FOR_CAMERA_SNAPSHOTS string 
+var CAMERA_SNAPSHOTS_DIRECTORY string 
 
 type arcGisTime time.Time
 
@@ -177,7 +177,7 @@ func snapshotFromCamera(cameraId string) {
 	frameFileName := fmt.Sprintf("%s.jpg", strings.TrimSuffix(videoFileName, ".mp4"))
 	pathToFrame := fmt.Sprintf(
 		"file:%v/%v",
-		DIRECTORY_FOR_CAMERA_SNAPSHOTS,
+		CAMERA_SNAPSHOTS_DIRECTORY,
 		frameFileName,
 	)
 
@@ -219,12 +219,12 @@ func main() {
 	}
 
 	DB_CONNECTION_STRING := os.Getenv("DB_CONNECTION_STRING")
-	DIRECTORY_FOR_CAMERA_SNAPSHOTS = os.Getenv("DIRECTORY_FOR_CAMERA_SNAPSHOTS")	
+	CAMERA_SNAPSHOTS_DIRECTORY = os.Getenv("CAMERA_SNAPSHOTS_DIRECTORY")	
 
-	if strings.TrimSpace(DIRECTORY_FOR_CAMERA_SNAPSHOTS) == "" {
+	if strings.TrimSpace(CAMERA_SNAPSHOTS_DIRECTORY) == "" {
 		log.Fatalf(
-			"Invalid value for DIRECTORY_FOR_CAMERA_SNAPSHOTS %v",
-			DIRECTORY_FOR_CAMERA_SNAPSHOTS,
+			"Invalid value for CAMERA_SNAPSHOTS_DIRECTORY %v",
+			CAMERA_SNAPSHOTS_DIRECTORY,
 		)
 	}
 
