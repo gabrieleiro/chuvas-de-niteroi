@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&outFields=tx_estacao,dt_data,fl_ppnow&returnGeometry=false&where=1=1
+  url: https://services8.arcgis.com/TpaOLI1HCh5AcRQB/arcgis/rest/services/Grouplayer_SVIDA_SMDCG/FeatureServer/15/query?f=json&cacheHint=true&outFields=tx_estacao,dt_data,fl_ppnow,GlobalID&returnGeometry=false&where=1=1
   body: none
   auth: inherit
 }
@@ -13,7 +13,7 @@ get {
 params:query {
   f: json
   cacheHint: true
-  outFields: tx_estacao,dt_data,fl_ppnow
+  outFields: tx_estacao,dt_data,fl_ppnow,GlobalID
   returnGeometry: false
   where: 1=1
 }
