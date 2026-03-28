@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS RainGaugeReadings(
     id              INTEGER PRIMARY KEY,
     reading_value   FLOAT NOT NULL,
     device_id       INTEGER NOT NULL,
-    created_at      DATETIME DEFAULT CURRENT_TIMESTAMPT NOT NULL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at      DATETIME
 );
 
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS Camera(
     code_in_nittrans  TEXT NOT NULL,
     latitude          TEXT NOT NULL,
     longitude         TEXT NOT NULL,
-    created_at        DATETIME DEFAULT CURRENT_TIMESTAMPT NOT NULL,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at        DATETIME
 );
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS CameraSnapshot(
     id           INTEGER PRIMARY KEY,
     image_url    TEXT NOT NULL,
     from_camera  INTEGER NOT NULL,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMPT NOT NULL,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at   DATETIME
 );
 
